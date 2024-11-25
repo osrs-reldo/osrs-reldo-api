@@ -1,12 +1,12 @@
-const BASE_URL = 'https://oldschool.runescape.wiki/api.php';
-const USER_AGENT = 'ReldoApp';
+const BASE_URL = "https://oldschool.runescape.wiki/api.php";
+const USER_AGENT = "ReldoApp";
 
 enum Action {
-  Search = 'opensearch',
+  Search = "opensearch",
 }
 
 enum Format {
-  JSON = 'json',
+  JSON = "json",
 }
 
 function buildURL(
@@ -16,7 +16,7 @@ function buildURL(
 ): string {
   const stringQuery = Object.keys(queryParams)
     .map((key) => `&${key}=${queryParams[key]}`)
-    .join('');
+    .join("");
   return `${BASE_URL}?action=${action}&format=${format}${stringQuery}`;
 }
 
@@ -35,10 +35,10 @@ export async function textSearch(
 ): Promise<Record<string, string>> {
   const url = buildURL(Action.Search, Format.JSON, { search: searchString });
   const result = await fetch(url, {
-    method: 'GET',
+    method: "GET",
     headers: {
-      'Content-Type': 'application/json',
-      'User-agent': USER_AGENT,
+      "Content-Type": "application/json",
+      "User-agent": USER_AGENT,
     },
   });
 

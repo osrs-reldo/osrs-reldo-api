@@ -1,13 +1,13 @@
-import express from 'express';
-import hiscores, { Gamemode } from 'osrs-json-hiscores';
+import express from "express";
+import hiscores, { Gamemode } from "osrs-json-hiscores";
 const router = express.Router();
 
 /* GET hiscores lookup. */
-router.get('/:rsn', function (req, res, next) {
+router.get("/:rsn", function (req, res, next) {
   hiscores
     .getStatsByGamemode(
       req.params.rsn,
-      (req.query.mode as Gamemode) ?? 'seasonal',
+      (req.query.mode as Gamemode) ?? "seasonal",
     )
     .then((response) => res.send(response))
     .catch((err) => {

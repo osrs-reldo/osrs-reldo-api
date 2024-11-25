@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
 export type CreateTaskResult =
   | {
@@ -16,11 +16,11 @@ export async function createTask(
   content: string,
 ): Promise<CreateTaskResult> {
   try {
-    const res = await fetch(`${process.env.HEIGHT_API_ENDPOINT ?? ''}/tasks`, {
-      method: 'POST',
+    const res = await fetch(`${process.env.HEIGHT_API_ENDPOINT ?? ""}/tasks`, {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `api-key ${process.env.HEIGHT_API_KEY ?? ''}`,
+        "Content-Type": "application/json",
+        Authorization: `api-key ${process.env.HEIGHT_API_KEY ?? ""}`,
       },
       body: JSON.stringify({
         name: title,
@@ -31,7 +31,7 @@ export async function createTask(
     const json: { id: string } = await res.json();
     return {
       status: 201,
-      message: `Task ID ${json.id ?? 'UNKNOWN_ID'} successfully created!`,
+      message: `Task ID ${json.id ?? "UNKNOWN_ID"} successfully created!`,
     };
   } catch (err) {
     console.error(err);

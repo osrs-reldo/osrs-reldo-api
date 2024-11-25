@@ -1,122 +1,168 @@
-import mysql from 'mysql2/promise';
-import { Client } from 'pg';
-import dotenv from 'dotenv';
+import { Client } from "pg";
+import { QueryResultRow } from "pg";
+import dotenv from "dotenv";
 
-dotenv.config({ path: '.env.development' });
+dotenv.config({ path: ".env.development" });
 
-let pool: any;
-const dbType = process.env.DB_TYPE;
-
-// Database Connection Pool Setup
-if (dbType === 'mysql') {
-  pool = mysql.createPool({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.MYSQL_DATABASE,
-  });
-} else if (dbType === 'postgres') {
-  pool = new Client({
-    host: process.env.POSTGRES_HOST,
-    user: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DATABASE,
-  });
-  pool.connect();
-} else {
-  throw new Error('Unsupported DB_TYPE specified in .env file');
+// Define a Skill type
+interface Skill {
+  type: string;
+  level: number;
+  experience: number;
 }
 
+// Define a Boss type
+interface Boss {
+  name: string;
+  killCount: number;
+}
+
+// Define a Character type
+interface Character {
+  id: number;
+  character_name: string;
+  user_id: number;
+  skills?: Skill[];
+  bosses?: Boss[];
+}
+
+// PostgreSQL Client Setup
+const pool = new Client({
+  host: process.env.POSTGRES_HOST,
+  user: process.env.POSTGRES_USER,
+  password: process.env.POSTGRES_PASSWORD,
+  database: process.env.POSTGRES_DATABASE,
+});
+
+// Connect the pool
+pool.connect().catch((err) => {
+  console.error("Failed to connect to PostgreSQL:", err.message);
+  process.exit(1);
+});
+
 // Execute Query Helper
-const executeQuery = async (query: string, params: any[]): Promise<any[]> => {
-  if (dbType === 'mysql') {
-    const [rows] = await pool.query(query, params);
-    return rows as any[];
-  } else if (dbType === 'postgres') {
-    const result = await pool.query(query, params);
-    return result.rows;
-  }
-  throw new Error('Invalid database configuration');
+const executeQuery = async <T extends QueryResultRow>(
+  query: string,
+  params: unknown[],
+): Promise<T[]> => {
+  const result = await pool.query<T>(query, params);
+  return result.rows;
 };
 
 // Save Character Stats
-export const saveCharacterStats = async (characterName: string, userId: number, skills: any[], bosses: any[]): Promise<number> => {
+export const saveCharacterStats = async (
+  characterName: string,
+  userId: number,
+  skills: Skill[],
+  bosses: Boss[],
+): Promise<number> => {
   try {
-    const characterQuery = dbType === 'mysql'
-      ? 'INSERT INTO characters (character_name, user_id) VALUES (?, ?)'
-      : 'INSERT INTO characters (character_name, user_id) VALUES ($1, $2) RETURNING id';
-    const characterResult = await executeQuery(characterQuery, [characterName, userId]);
-    const characterId = dbType === 'mysql' ? (characterResult as any).insertId : characterResult[0].id;
+    const characterQuery =
+      "INSERT INTO characters (character_name, user_id) VALUES ($1, $2) RETURNING id";
 
+    const characterResult = await executeQuery<{ id: number }>(characterQuery, [
+      characterName,
+      userId,
+    ]);
+
+    const characterId = characterResult[0].id;
+
+    // Save skills
+    const skillQuery =
+      "INSERT INTO skills (character_id, skill_type, level, experience) VALUES ($1, $2, $3, $4)";
     for (const skill of skills) {
-      const skillQuery = dbType === 'mysql'
-        ? 'INSERT INTO skills (character_id, skill_type, level, experience) VALUES (?, ?, ?, ?)'
-        : 'INSERT INTO skills (character_id, skill_type, level, experience) VALUES ($1, $2, $3, $4)';
-      await executeQuery(skillQuery, [characterId, skill.type, skill.level, skill.experience]);
+      await executeQuery(skillQuery, [
+        characterId,
+        skill.type,
+        skill.level,
+        skill.experience,
+      ]);
     }
+
+    // Save bosses
+    const bossQuery =
+      "INSERT INTO bosses (character_id, boss_name, kill_count) VALUES ($1, $2, $3)";
     for (const boss of bosses) {
-      const bossQuery = dbType === 'mysql'
-        ? 'INSERT INTO bosses (character_id, boss_name, kill_count) VALUES (?, ?, ?)'
-        : 'INSERT INTO bosses (character_id, boss_name, kill_count) VALUES ($1, $2, $3)';
       await executeQuery(bossQuery, [characterId, boss.name, boss.killCount]);
     }
+
     return characterId;
-  } catch (error: any) {
-    throw new Error(`Error saving character stats: ${String(error.message)}`);
+  } catch (error) {
+    throw new Error(`Error saving character stats: ${String(error)}`);
   }
 };
 
 // Get Character Stats
-export const getCharacterStats = async (characterId: number): Promise<any> => {
+export const getCharacterStats = async (
+  characterId: number,
+): Promise<Character | null> => {
   try {
-    const characterQuery = dbType === 'mysql' ? 'SELECT * FROM characters WHERE id = ?' : 'SELECT * FROM characters WHERE id = $1';
-    const character = await executeQuery(characterQuery, [characterId]);
-    if (character.length === 0) return null;
+    const characterQuery = "SELECT * FROM characters WHERE id = $1";
 
-    const skillsQuery = dbType === 'mysql' ? 'SELECT * FROM skills WHERE character_id = ?' : 'SELECT * FROM skills WHERE character_id = $1';
-    const skills = await executeQuery(skillsQuery, [characterId]);
+    const characters = await executeQuery<Character>(characterQuery, [
+      characterId,
+    ]);
 
-    const bossesQuery = dbType === 'mysql' ? 'SELECT * FROM bosses WHERE character_id = ?' : 'SELECT * FROM bosses WHERE character_id = $1';
-    const bosses = await executeQuery(bossesQuery, [characterId]);
+    if (characters.length === 0) return null;
 
-    return { ...character[0], skills, bosses };
-  } catch (error: any) {
-    throw new Error(`Error retrieving character stats: ${String(error.message)}`);
+    const skillsQuery = "SELECT * FROM skills WHERE character_id = $1";
+    const skills = await executeQuery<Skill>(skillsQuery, [characterId]);
+
+    const bossesQuery = "SELECT * FROM bosses WHERE character_id = $1";
+    const bosses = await executeQuery<Boss>(bossesQuery, [characterId]);
+
+    return { ...characters[0], skills, bosses };
+  } catch (error) {
+    throw new Error(
+      `Error retrieving character stats: ${String((error as Error).message)}`,
+    );
   }
 };
 
 // Update Character Stats
-export const updateCharacterStats = async (characterId: number, skills: any[], bosses: any[]): Promise<void> => {
+export const updateCharacterStats = async (
+  characterId: number,
+  skills: Skill[],
+  bosses: Boss[],
+): Promise<void> => {
   try {
+    const skillQuery =
+      "UPDATE skills SET level = $1, experience = $2 WHERE character_id = $3 AND skill_type = $4";
     for (const skill of skills) {
-      const skillQuery = dbType === 'mysql'
-        ? 'UPDATE skills SET level = ?, experience = ? WHERE character_id = ? AND skill_type = ?'
-        : 'UPDATE skills SET level = $1, experience = $2 WHERE character_id = $3 AND skill_type = $4';
-      await executeQuery(skillQuery, [skill.level, skill.experience, characterId, skill.type]);
+      await executeQuery(skillQuery, [
+        skill.level,
+        skill.experience,
+        characterId,
+        skill.type,
+      ]);
     }
 
+    const bossQuery =
+      "UPDATE bosses SET kill_count = $1 WHERE character_id = $2 AND boss_name = $3";
     for (const boss of bosses) {
-      const bossQuery = dbType === 'mysql'
-        ? 'UPDATE bosses SET kill_count = ? WHERE character_id = ? AND boss_name = ?'
-        : 'UPDATE bosses SET kill_count = $1 WHERE character_id = $2 AND boss_name = $3';
       await executeQuery(bossQuery, [boss.killCount, characterId, boss.name]);
     }
-  } catch (error: any) {
-    throw new Error(`Error updating character stats: ${String(error.message)}`);
+  } catch (error) {
+    throw new Error(
+      `Error updating character stats: ${String((error as Error).message)}`,
+    );
   }
 };
 
 // Get All Character Stats
-export const getAllCharacterStats = async (userId: number | null): Promise<any[]> => {
+export const getAllCharacterStats = async (
+  userId: number | null,
+): Promise<Character[]> => {
   try {
-    const query = userId !== null
-      ? dbType === 'mysql'
-        ? 'SELECT * FROM characters WHERE user_id = ?'
-        : 'SELECT * FROM characters WHERE user_id = $1'
-      : 'SELECT * FROM characters';
+    const query =
+      userId !== null
+        ? "SELECT * FROM characters WHERE user_id = $1"
+        : "SELECT * FROM characters";
     const params = userId !== null ? [userId] : [];
-    return await executeQuery(query, params);
-  } catch (error: any) {
-    throw new Error(`Error retrieving all character stats: ${String(error.message)}`);
+    return await executeQuery<Character>(query, params);
+  } catch (error) {
+    throw new Error(
+      `Error retrieving all character stats: ${String((error as Error).message)}`,
+    );
   }
 };

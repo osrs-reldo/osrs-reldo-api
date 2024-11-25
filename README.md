@@ -12,19 +12,21 @@ Backend API for use with [os-league-tools](https://github.com/osrs-reldo/os-leag
 
 2. Set up `.env` file:
 
-   - Make a copy of `/.env.example` and rename it to `/.env.development`
+   - Make a copy of `/.env.example` and rename it to `/.env`
    - Any fields with the value `"example"` will need to be replaced with valid values in order to function correctly. Not all routes need env vars.
      - `/hiscores` routes do not require any env vars
      - `/feedback` routes require all `HEIGHT_*` vars to be correctly filled out. See [Height API documentation](https://www.notion.so/API-documentation-643aea5bf01742de9232e5971cb4afda) for more info on the keys and IDs used in task creation.
+     - You will also need to provide details of your postgres database too. 
 
 3. Start app:
 
-   - `npm run dev`
+   - `npm run start`
 
-4. API will be running at http://localhost:8080/
+4. API will be running at http://localhost:8080/ 
+  - This is expected to change down the track to a less frequented port once "bundling" is completed.
 
 
-5. User Registration and Authentication relies upon a database server, either in PostGres or MySQL, the query to create the relevant tables are below;
+5. User Registration and Authentication relies upon a PostGres database server. The query to create this table is below;
 
 PostGres:
 
@@ -35,17 +37,6 @@ CREATE TABLE users (
     salt TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-MySQL:
-
-CREATE TABLE users (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,   
-    salt VARCHAR(255) NOT NULL,            
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 
 ## Usage
 

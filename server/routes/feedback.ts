@@ -1,12 +1,12 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response } from "express";
 import {
   submitBug,
   submitSuggestion,
   submitFeedback,
-} from '../service/feedbackService';
+} from "../service/feedbackService";
 const router = express.Router();
 
-router.post('/', function (req: Request, res: Response) {
+router.post("/", function (req: Request, res: Response) {
   submitFeedback(req.body)
     .then((response) => {
       if (response.status !== 201) {
@@ -19,7 +19,7 @@ router.post('/', function (req: Request, res: Response) {
     });
 });
 
-router.post('/bug', function (req, res) {
+router.post("/bug", function (req, res) {
   submitBug(req.body)
     .then((response) => {
       if (response.status !== 201) {
@@ -32,7 +32,7 @@ router.post('/bug', function (req, res) {
     });
 });
 
-router.post('/suggestion', function (req, res) {
+router.post("/suggestion", function (req, res) {
   submitSuggestion(req.body)
     .then((response) => {
       if (response.status !== 201) {

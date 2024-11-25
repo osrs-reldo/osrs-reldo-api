@@ -1,1 +1,1 @@
-declare module 'custom-env';
+declare module "custom-env";
